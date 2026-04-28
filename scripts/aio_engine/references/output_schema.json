@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SEO AIO Engine Output Schema",
+  "description": "底座化分析结果的标准输出格式。所有字段类型固定，null 和空字符串语义区分明确。",
+  "type": "object",
+  "required": ["meta", "pageData", "moduleResults", "actions", "moduleStatuses"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "description": "分析元数据",
+      "required": ["url", "analyzedAt", "durationMs", "version"],
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "analyzedAt": { "type": "string", "format": "date-time" },
+        "durationMs": { "type": "integer", "minimum": 0 },
+        "version": { "type": "string", "default": "1.1.0" },
+        "cacheHit": { "type": "boolean", "default": false }
+      }
+    },
+    "pageData": {
+      "type": "object",
+      "description": "页面基础信息",
+      "required": ["title", "description", "type", "existingSchemas"],
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "description": "推断的 Schema.org 类型" },
+        "existingSchemas": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "moduleResults": {
+      "type": "object",
+      "description": "各分析模块的标准化输出",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["status", "data", "errors", "fallback"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success", "error", "skipped", "unavailable"]
+          },
+          "data": { "type": "object" },
+          "score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+          "scoreDetails": {
+            "type": ["object", "null"],
+            "description": "评分明细，模块自定义的 flat dict"
+          },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "fallback": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    "geo": {
+      "type": "object",
+      "description": "GEO 增强字段索引：指向 moduleResults 中的 AI 引用优化数据",
+      "properties": {
+        "citeWorthySnippets": {
+          "type": "array",
+          "description": "高引用潜力片段，来自 semantic.data.cite_worthy_snippets",
+          "items": { "type": "string" }
+        },
+        "semanticTopics": {
+          "type": "object",
+          "description": "语义主题覆盖分析，来自 semantic.data.semantic_topics",
+          "properties": {
+            "expected": { "type": "array", "items": { "type": "string" } },
+            "covered": { "type": "array", "items": { "type": "string" } },
+            "missing": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "entities": {
+          "type": "object",
+          "description": "核心实体链接，来自 schema.data.entities",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "sameAs": { "type": "array", "items": { "type": "string" } },
+              "wikidata": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "description": "去重并排序后的推荐行动",
+      "items": {
+        "type": "object",
+        "required": ["action", "priority"],
+        "properties": {
+          "action": { "type": "string" },
+          "priority": { "type": "string", "enum": ["high", "medium", "low"] },
+          "targetModule": { "type": "string", "description": "目标模块标识" },
+          "params": { "type": "object", "description": "行动参数" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "moduleStatuses": {
+      "type": "object",
+      "description": "各模块执行状态快照",
+      "additionalProperties": {
+        "type": "string",
+        "enum": ["success", "error", "skipped", "unavailable"]
+      }
+    },
+    "scores": {
+      "type": "object",
+      "description": "综合评分",
+      "properties": {
+        "overall": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 }
+      }
+    },
+    "workflow": {
+      "type": "object",
+      "description": "工作流执行追踪信息",
+      "properties": {
+        "steps": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["status", "durationMs"],
+            "properties": {
+              "status": { "type": "string" },
+              "durationMs": { "type": "integer", "minimum": 0 },
+              "error": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

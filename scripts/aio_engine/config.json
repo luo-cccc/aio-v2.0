@@ -1,0 +1,16 @@
+{
+  "llm": {
+    "provider": "anthropic",
+    "api_key": "",
+    "model": "MiniMax-M2.7",
+    "max_tokens": 8192,
+    "base_url": "https://api.minimaxi.com/anthropic"
+  },
+  "crawler": {
+    "timeout": 30,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  },
+  "cache": {
+    "ttl_seconds": 300
+  }
+}
