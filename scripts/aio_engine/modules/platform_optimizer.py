@@ -337,12 +337,12 @@ class PlatformOptimizer:
             {
                 "action": "确保 Wikipedia/Wikidata 实体存在（影响所有平台）",
                 "priority": "high",
-                "target_module": "brand_checker",
+                "target_module": "eeat_scorer",
             },
             {
                 "action": "创建 YouTube 频道并发布主题相关内容（最高相关性 0.737）",
                 "priority": "high",
-                "target_module": "brand_checker",
+                "target_module": "eeat_scorer",
             },
             {
                 "action": "添加 comprehensive Schema.org markup（尤其 Organization + sameAs）",
@@ -352,7 +352,7 @@ class PlatformOptimizer:
             {
                 "action": "优化页面加载速度（目标 < 2s）",
                 "priority": "medium",
-                "target_module": "technical_auditor",
+                "target_module": "platform_optimizer",
             },
         ]
 
@@ -393,19 +393,19 @@ class PlatformOptimizer:
             actions.append({
                 "action": "优化图片 alt 和文件名，增加视频内容",
                 "priority": "medium",
-                "target_module": "multimodal_labeler",
+                "target_module": "platform_optimizer",
             })
 
         elif weakest == "bing_copilot" and weakest_score < 50:
             actions.append({
                 "action": "注册 Bing Webmaster Tools 并提交 sitemap",
                 "priority": "medium",
-                "target_module": "technical_auditor",
+                "target_module": "robots_checker",
             })
             actions.append({
                 "action": "实现 IndexNow 协议",
                 "priority": "low",
-                "target_module": "technical_auditor",
+                "target_module": "robots_checker",
             })
 
         return actions

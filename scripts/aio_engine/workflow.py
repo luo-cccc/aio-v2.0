@@ -81,7 +81,8 @@ class Workflow:
 
     默认执行 3 阶段流水线：
         Phase 1: fetch    -> 抓取并解析页面
-        Phase 2: parallel -> schema / semantic / faq / multimodal / authority / monitor
+        Phase 2: parallel -> schema / semantic / faq / readability / citability /
+                             robots / llmstxt / schema_audit / platform / eeat
         Phase 3: aggregate-> 聚合所有结果
     """
 
@@ -460,7 +461,7 @@ class Workflow:
                         "word_count": result.get("word_count", 0),
                     }
             elif status in ("skipped", "unavailable", "error") and result:
-                # 保留 error/skipped 状态下的 data（如 monitor 的 unavailable 数据）
+                # 保留 error/skipped 状态下的 data（如模块 unavailable 数据）
                 mod_entry["data"] = {k: v for k, v in result.items()
                                      if k not in ("status", "score", "score_details",
                                                   "errors", "fallback", "recommended_actions")}
