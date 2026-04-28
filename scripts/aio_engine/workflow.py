@@ -279,7 +279,7 @@ class Workflow:
 
     async def _do_schema(self, ctx: WorkflowContext) -> dict:
         gen = SchemaGenerator(ctx.llm)
-        return await gen.generate(ctx.page.derived_type, ctx.page)
+        return gen.generate(ctx.page)
 
     async def _step_semantic(self, ctx: WorkflowContext) -> StepResult:
         return await self._run_step("semantic", ctx, self._do_semantic)
