@@ -19,7 +19,7 @@ from . import analyze, Workflow
 
 def main():
     parser = argparse.ArgumentParser(
-        description="aio-engine: 统一 SEO 分析引擎",
+        description="aio-engine: 文章 SEO + GEO 优化引擎 v2.0.0",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例:
