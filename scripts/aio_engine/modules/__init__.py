@@ -32,23 +32,12 @@ from .page_parser import PageParser
 from .schema_generator import SchemaGenerator
 from .semantic_optimizer import SemanticOptimizer
 from .faq_generator import FAQGenerator
-from .multimodal_labeler import MultimodalLabeler
-from .authority_checker import AuthorityChecker
 from .citability_scorer import CitabilityScorer
 from .robots_checker import RobotsChecker
 from .llmstxt_checker import LLMsTxtChecker
-from .brand_checker import BrandChecker
 from .schema_auditor import SchemaAuditor
 from .platform_optimizer import PlatformOptimizer
-from .technical_auditor import TechnicalAuditor
 from .eeat_scorer import EEATScorer
-
-
-try:
-    from .monitor import MonitorTracker
-    _HAS_MONITOR = True
-except ImportError:
-    _HAS_MONITOR = False
 
 
 # ------------------------------------------------------------------

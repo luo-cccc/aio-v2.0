@@ -28,22 +28,12 @@ from .modules.page_parser import PageParser, ParsedPage
 from .modules.schema_generator import SchemaGenerator
 from .modules.semantic_optimizer import SemanticOptimizer
 from .modules.faq_generator import FAQGenerator
-from .modules.multimodal_labeler import MultimodalLabeler
-from .modules.authority_checker import AuthorityChecker
 from .modules.citability_scorer import CitabilityScorer
 from .modules.robots_checker import RobotsChecker
 from .modules.llmstxt_checker import LLMsTxtChecker
-from .modules.brand_checker import BrandChecker
 from .modules.schema_auditor import SchemaAuditor
 from .modules.platform_optimizer import PlatformOptimizer
-from .modules.technical_auditor import TechnicalAuditor
 from .modules.eeat_scorer import EEATScorer
-
-try:
-    from .modules.monitor import MonitorTracker
-    _HAS_MONITOR = True
-except ImportError:
-    _HAS_MONITOR = False
 
 
 @dataclass
