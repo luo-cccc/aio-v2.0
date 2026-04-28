@@ -38,6 +38,7 @@ from .llmstxt_checker import LLMsTxtChecker
 from .schema_auditor import SchemaAuditor
 from .platform_optimizer import PlatformOptimizer
 from .eeat_scorer import EEATScorer
+from .readability_analyzer import ReadabilityAnalyzer
 
 
 # ------------------------------------------------------------------
@@ -95,7 +96,7 @@ async def generate_schema(
     client = llm or LLMClient()
     try:
         gen = SchemaGenerator(client)
-        return await gen.generate(page.derived_type, page)
+        return gen.generate(page)
     finally:
         if llm is None:
             await client.close()
@@ -150,63 +151,25 @@ async def generate_faq(
 
 
 # ------------------------------------------------------------------
-# 4. 多模态标注
+# 4. 可读性评分
 # ------------------------------------------------------------------
-async def analyze_multimodal(
+async def score_readability(
     url: str,
-    llm: Optional[LLMClient] = None,
     session: Optional[aiohttp.ClientSession] = None,
 ) -> dict:
     """
-    检测图片 alt 缺失/无意义，生成 VideoObject Schema。
+    分析文章可读性（Flesch-Kincaid、句子长度、段落长度、被动语态、复杂词密度）。
 
-    Returns ModuleResult dict with data.alt_texts, data.video_objects.
+    Returns ModuleResult dict with data.readability_metrics.
     """
     ctx = await _fetch_and_parse(url, session=session)
     page = ctx["page"]
-    client = llm or LLMClient()
-    try:
-        c = Crawler(session=session) if session else Crawler()
-        labeler = MultimodalLabeler(client, c)
-        return await labeler.analyze(page.images, page.videos)
-    finally:
-        if llm is None:
-            await client.close()
+    analyzer = ReadabilityAnalyzer()
+    return analyzer.analyze(page.text, page.headings)
 
 
 # ------------------------------------------------------------------
-# 5. 权威信号检查
-# ------------------------------------------------------------------
-async def check_authority(
-    url: str,
-    llm: Optional[LLMClient] = None,
-    session: Optional[aiohttp.ClientSession] = None,
-    lang: Optional[str] = None,
-) -> dict:
-    """
-    分析外部权威信号覆盖情况（中文/英文平台自动检测）。
-
-    Args:
-        url: 要分析的网页 URL
-        llm: 可选 LLMClient 实例
-        session: 可选共享 aiohttp ClientSession
-        lang: 可选语言指定 "zh" 或 "en"，默认自动检测
-
-    Returns ModuleResult dict with data.platform_coverage, data.strategy.
-    """
-    ctx = await _fetch_and_parse(url, session=session)
-    page = ctx["page"]
-    client = llm or LLMClient()
-    try:
-        checker = AuthorityChecker(client)
-        return await checker.check(page.title, page.keyword, lang=lang)
-    finally:
-        if llm is None:
-            await client.close()
-
-
-# ------------------------------------------------------------------
-# 6. 可引用性评分
+# 5. 可引用性评分
 # ------------------------------------------------------------------
 async def score_citability(
     url: str,
@@ -260,25 +223,7 @@ async def check_llmstxt(
 
 
 # ------------------------------------------------------------------
-# 9. 品牌提及检测
-# ------------------------------------------------------------------
-async def check_brand(
-    url: str,
-    session: Optional[aiohttp.ClientSession] = None,
-) -> dict:
-    """
-    检测品牌在 Wikipedia/Wikidata 等平台的 presence。
-
-    Returns ModuleResult dict with data.platforms.
-    """
-    ctx = await _fetch_and_parse(url, session=session)
-    page = ctx["page"]
-    checker = BrandChecker()
-    return await checker.check(page.title, url)
-
-
-# ------------------------------------------------------------------
-# 10. Schema 审计
+# 9. Schema 审计
 # ------------------------------------------------------------------
 async def audit_schema(
     url: str,
@@ -327,38 +272,7 @@ async def score_platform(
 
 
 # ------------------------------------------------------------------
-# 12. 技术 SEO 审计
-# ------------------------------------------------------------------
-async def audit_technical(
-    url: str,
-    session: Optional[aiohttp.ClientSession] = None,
-) -> dict:
-    """
-    8 维度技术 SEO 审计（可爬性、可索引性、安全、URL、移动、CWV、SSR、速度）。
-
-    Returns ModuleResult dict with data.categories, data.critical_issues.
-    """
-    ctx = await _fetch_and_parse(url, session=session)
-    page = ctx["page"]
-    html = ctx["html"]
-    headers = ctx["headers"]
-    c = Crawler(session=session) if session else Crawler()
-    robots_raw = await c.fetch_robots_txt(url)
-    robots_checker = RobotsChecker()
-    robots_result = robots_checker.check(robots_raw)
-    auditor = TechnicalAuditor()
-    return auditor.audit(
-        html=html,
-        headers=headers,
-        has_ssr=page.has_ssr,
-        robots_result=robots_result,
-        canonical=page.canonical,
-        og_type=page.og_type,
-    )
-
-
-# ------------------------------------------------------------------
-# 13. E-E-A-T 评分
+# 12. E-E-A-T 评分
 # ------------------------------------------------------------------
 async def score_eeat(
     url: str,
@@ -387,46 +301,16 @@ async def score_eeat(
     )
 
 
-# ------------------------------------------------------------------
-# 14. GSC 监控（可选）
-# ------------------------------------------------------------------
-async def track_monitor(url: str) -> dict:
-    """
-    追踪 GSC 搜索数据（点击、展示、CTR、排名趋势）。
-
-    Returns ModuleResult dict with data.metrics, data.trend.
-    若 GSC 依赖未安装，返回 unavailable 状态。
-    """
-    if not _HAS_MONITOR:
-        return {
-            "status": "unavailable",
-            "score": 0,
-            "metrics": {},
-            "trend": "unavailable",
-            "fallback": False,
-            "errors": [],
-            "recommended_actions": [
-                {"action": "Google API 客户端未安装，monitor 模块不可用", "priority": "low"}
-            ],
-        }
-    tracker = MonitorTracker()
-    return await tracker.track(url)
-
-
 __all__ = [
     # 独立异步函数
     "generate_schema",
     "optimize_semantic",
     "generate_faq",
-    "analyze_multimodal",
-    "check_authority",
+    "score_readability",
     "score_citability",
     "check_robots",
     "check_llmstxt",
-    "check_brand",
     "audit_schema",
     "score_platform",
-    "audit_technical",
     "score_eeat",
-    "track_monitor",
 ]

@@ -197,13 +197,11 @@ class AnalysisResult:
             statuses = raw.get("moduleStatuses", {})
             content = raw.get("content", {})
             schemas = raw.get("schemas", {})
-            authority = raw.get("authority", {})
-            monitor = raw.get("monitor", {})
 
             for name in (
-                "schema", "semantic", "faq", "multimodal", "authority", "monitor",
-                "citability", "robots", "llmstxt", "brand", "schema_audit",
-                "platform", "technical", "eeat",
+                "schema", "semantic", "faq", "readability",
+                "citability", "robots", "llmstxt", "schema_audit",
+                "platform", "eeat",
             ):
                 status = statuses.get(name, "error")
                 data: dict = {}
@@ -218,20 +216,9 @@ class AnalysisResult:
                     data = {"optimized_text": content.get("optimizedDescription", "")}
                 elif name == "faq":
                     data = {"faq_html": content.get("faqHtml", "")}
-                elif name == "multimodal":
+                elif name == "readability":
                     data = {
-                        "alt_texts": content.get("altTexts", []),
-                        "video_objects": content.get("videoObjects", []),
-                    }
-                elif name == "authority":
-                    data = {
-                        "platform_coverage": authority.get("platformCoverage", []),
-                        "strategy": authority.get("strategy", []),
-                    }
-                elif name == "monitor":
-                    data = {
-                        "metrics": monitor.get("metrics", {}),
-                        "trend": monitor.get("trend", "unknown"),
+                        "readability_metrics": content.get("readabilityMetrics", {}),
                     }
                 elif name == "citability":
                     data = {
@@ -250,10 +237,6 @@ class AnalysisResult:
                         "issues": content.get("llmsTxtIssues", []),
                         "suggestions": content.get("llmsTxtSuggestions", []),
                     }
-                elif name == "brand":
-                    data = {
-                        "platforms": content.get("brandPlatforms", {}),
-                    }
                 elif name == "schema_audit":
                     data = {
                         "schemas_found": content.get("schemasFound", []),
@@ -264,11 +247,6 @@ class AnalysisResult:
                     data = {
                         "platforms": content.get("platformScores", {}),
                         "universal_actions": content.get("universalActions", []),
-                    }
-                elif name == "technical":
-                    data = {
-                        "categories": content.get("technicalCategories", {}),
-                        "critical_issues": content.get("technicalIssues", []),
                     }
                 elif name == "eeat":
                     data = {

@@ -62,20 +62,16 @@ StepHook = Callable[[str, WorkflowContext], Awaitable[None]]
 
 # 模块输入依赖声明：key=模块名，value=依赖的字段列表（来自 ParsedPage）
 _MODULE_DEPENDENCIES: Dict[str, List[str]] = {
-    "schema": ["derived_type", "title", "description", "url"],
+    "schema": ["title", "description", "url"],
     "semantic": ["text"],
     "faq": ["keyword"],
-    "multimodal": ["images", "videos"],
-    "authority": ["title", "keyword"],
-    "monitor": ["url"],
     "citability": ["content_blocks"],
     "robots": ["url"],
     "llmstxt": ["url"],
-    "brand": ["title", "url"],
-    "schema_audit": ["json_ld_scripts", "derived_type"],
+    "schema_audit": ["json_ld_scripts"],
     "platform": ["content_blocks", "headings", "_raw_html", "text", "images", "videos"],
-    "technical": ["has_ssr", "_raw_html", "_headers", "canonical", "og_type"],
     "eeat": ["text", "content_blocks", "headings", "_raw_html"],
+    "readability": ["text", "headings"],
 }
 
 
@@ -162,8 +158,8 @@ class Workflow:
         单独执行某个步骤（用于调试或按需分析）。
 
         支持的 step_name:
-            fetch, schema, semantic, faq, multimodal, authority, monitor,
-            citability, robots, llmstxt, brand, schema_audit, platform, technical, eeat
+            fetch, schema, semantic, faq, readability,
+            citability, robots, llmstxt, schema_audit, platform, eeat
         """
         await self._ensure_clients()
         ctx = WorkflowContext(url=url, llm=self._llm, crawler=self._crawler)
@@ -179,17 +175,13 @@ class Workflow:
                 "schema": self._step_schema,
                 "semantic": self._step_semantic,
                 "faq": self._step_faq,
-                "multimodal": self._step_multimodal,
-                "authority": self._step_authority,
-                "monitor": self._step_monitor,
                 "citability": self._step_citability,
                 "robots": self._step_robots,
                 "llmstxt": self._step_llmstxt,
-                "brand": self._step_brand,
                 "schema_audit": self._step_schema_audit,
                 "platform": self._step_platform,
-                "technical": self._step_technical,
                 "eeat": self._step_eeat,
+                "readability": self._step_readability,
             }
 
             fn = step_map.get(step_name)
@@ -269,9 +261,9 @@ class Workflow:
         return missing
 
     _MODULE_NAMES: tuple = (
-        "schema", "semantic", "faq", "multimodal", "authority", "monitor",
-        "citability", "robots", "llmstxt", "brand", "schema_audit",
-        "platform", "technical", "eeat",
+        "schema", "semantic", "faq",
+        "citability", "robots", "llmstxt",
+        "schema_audit", "platform", "eeat", "readability",
     )
 
     async def _step_schema(self, ctx: WorkflowContext) -> StepResult:
@@ -295,37 +287,6 @@ class Workflow:
         gen = FAQGenerator(ctx.llm)
         return await gen.generate(ctx.page.keyword)
 
-    async def _step_multimodal(self, ctx: WorkflowContext) -> StepResult:
-        return await self._run_step("multimodal", ctx, self._do_multimodal)
-
-    async def _do_multimodal(self, ctx: WorkflowContext) -> dict:
-        labeler = MultimodalLabeler(ctx.llm, ctx.crawler)
-        return await labeler.analyze(ctx.page.images, ctx.page.videos)
-
-    async def _step_authority(self, ctx: WorkflowContext) -> StepResult:
-        return await self._run_step("authority", ctx, self._do_authority)
-
-    async def _do_authority(self, ctx: WorkflowContext) -> dict:
-        checker = AuthorityChecker(ctx.llm)
-        return await checker.check(ctx.page.title, ctx.page.keyword)
-
-    async def _step_monitor(self, ctx: WorkflowContext) -> StepResult:
-        return await self._run_step("monitor", ctx, self._do_monitor)
-
-    async def _do_monitor(self, ctx: WorkflowContext) -> dict:
-        if not _HAS_MONITOR:
-            return {
-                "status": "unavailable",
-                "score": 0,
-                "metrics": {},
-                "trend": "unavailable",
-                "recommended_actions": [
-                    {"action": "Google API 客户端未安装，monitor 模块不可用", "priority": "low"}
-                ],
-            }
-        tracker = MonitorTracker()
-        return await tracker.track(ctx.url)
-
     async def _step_citability(self, ctx: WorkflowContext) -> StepResult:
         return await self._run_step("citability", ctx, self._do_citability)
 
@@ -348,13 +309,6 @@ class Workflow:
         llms_raw = await ctx.crawler.fetch_llms_txt(ctx.url)
         checker = LLMsTxtChecker()
         return checker.check(llms_raw)
-
-    async def _step_brand(self, ctx: WorkflowContext) -> StepResult:
-        return await self._run_step("brand", ctx, self._do_brand)
-
-    async def _do_brand(self, ctx: WorkflowContext) -> dict:
-        checker = BrandChecker()
-        return await checker.check(ctx.page.title, ctx.url)
 
     async def _step_schema_audit(self, ctx: WorkflowContext) -> StepResult:
         return await self._run_step("schema_audit", ctx, self._do_schema_audit)
@@ -384,21 +338,6 @@ class Workflow:
             videos_count=len(ctx.page.videos),
         )
 
-    async def _step_technical(self, ctx: WorkflowContext) -> StepResult:
-        return await self._run_step("technical", ctx, self._do_technical)
-
-    async def _do_technical(self, ctx: WorkflowContext) -> dict:
-        auditor = TechnicalAuditor()
-        robots_result = ctx.results.get("robots", StepResult("robots", "error", 0, {})).data
-        return auditor.audit(
-            html=ctx.page._raw_html,
-            headers=ctx.page._headers,
-            has_ssr=ctx.page.has_ssr,
-            robots_result=robots_result or {},
-            canonical=ctx.page.canonical,
-            og_type=ctx.page.og_type,
-        )
-
     async def _step_eeat(self, ctx: WorkflowContext) -> StepResult:
         return await self._run_step("eeat", ctx, self._do_eeat)
 
@@ -418,6 +357,14 @@ class Workflow:
             has_reviews=features["has_reviews"],
             word_count=len(ctx.page.text.split()) if ctx.page.text else 0,
         )
+
+    async def _step_readability(self, ctx: WorkflowContext) -> StepResult:
+        return await self._run_step("readability", ctx, self._do_readability)
+
+    async def _do_readability(self, ctx: WorkflowContext) -> dict:
+        from .modules.readability_analyzer import ReadabilityAnalyzer
+        analyzer = ReadabilityAnalyzer()
+        return analyzer.analyze(ctx.page.text, ctx.page.headings)
 
     # ------------------------------------------------------------------
     # Phase 3: Aggregate
@@ -464,21 +411,6 @@ class Workflow:
                     }
                 elif name == "faq":
                     mod_entry["data"] = {"faq_html": result.get("faq_html", "")}
-                elif name == "multimodal":
-                    mod_entry["data"] = {
-                        "alt_texts": result.get("alt_texts", []),
-                        "video_objects": result.get("video_objects", []),
-                    }
-                elif name == "authority":
-                    mod_entry["data"] = {
-                        "platform_coverage": result.get("platform_coverage", []),
-                        "strategy": result.get("strategy", []),
-                    }
-                elif name == "monitor":
-                    mod_entry["data"] = {
-                        "metrics": result.get("metrics", {}),
-                        "trend": result.get("trend", "unknown"),
-                    }
                 elif name == "citability":
                     mod_entry["data"] = {
                         "blocks": result.get("blocks", []),
@@ -499,10 +431,6 @@ class Workflow:
                         "link_count": result.get("link_count", 0),
                         "full_version_exists": result.get("full_version_exists", False),
                     }
-                elif name == "brand":
-                    mod_entry["data"] = {
-                        "platforms": result.get("platforms", {}),
-                    }
                 elif name == "schema_audit":
                     mod_entry["data"] = {
                         "schemas_found": result.get("schemas_found", []),
@@ -514,15 +442,22 @@ class Workflow:
                         "platforms": result.get("platforms", {}),
                         "universal_actions": result.get("universal_actions", []),
                     }
-                elif name == "technical":
-                    mod_entry["data"] = {
-                        "categories": result.get("categories", {}),
-                        "critical_issues": result.get("critical_issues", []),
-                    }
                 elif name == "eeat":
                     mod_entry["data"] = {
                         "dimensions": result.get("dimensions", {}),
                         "content_quality": result.get("content_quality", {}),
+                    }
+                elif name == "readability":
+                    mod_entry["data"] = {
+                        "flesch_reading_ease": result.get("flesch_reading_ease", 0),
+                        "flesch_kincaid_grade": result.get("flesch_kincaid_grade", 0),
+                        "avg_sentence_length": result.get("avg_sentence_length", 0),
+                        "avg_paragraph_length": result.get("avg_paragraph_length", 0),
+                        "passive_voice_ratio": result.get("passive_voice_ratio", 0),
+                        "long_sentences_count": result.get("long_sentences_count", 0),
+                        "complex_words_ratio": result.get("complex_words_ratio", 0),
+                        "sentence_count": result.get("sentence_count", 0),
+                        "word_count": result.get("word_count", 0),
                     }
             elif status in ("skipped", "unavailable", "error") and result:
                 # 保留 error/skipped 状态下的 data（如 monitor 的 unavailable 数据）
@@ -567,7 +502,7 @@ class Workflow:
                 "url": ctx.url,
                 "analyzedAt": self._iso_now(),
                 "durationMs": duration_ms,
-                "version": "1.1.0",
+                "version": "2.0.0",
             },
             "pageData": {
                 "title": ctx.page.title if ctx.page else "",

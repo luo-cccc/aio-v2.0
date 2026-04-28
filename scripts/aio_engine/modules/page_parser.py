@@ -172,9 +172,9 @@ class PageParser:
 正文前500字: {text[:500]}"""
 
         prompt = (
-            "从以下网页内容中提取 1-3 个核心关键词（用逗号分隔），"
-            "这些关键词将用于生成 FAQ 和权威信号分析。"
-            "只返回关键词，不要解释。\n\n" + context
+            "从以下文章提取 3-5 个核心主题/实体（用逗号分隔），"
+            "这些主题将用于生成 FAQ 和语义分析。"
+            "只返回主题，不要解释。\n\n" + context
         )
 
         if self._llm is not None:
@@ -224,49 +224,14 @@ class PageParser:
         return ranked[0][0]
 
     # ------------------------------------------------------------------
-    # 类型推断
+    # 类型推断 (Article-Only)
     # ------------------------------------------------------------------
     async def _infer_type(
         self, title: str, description: str, text: str, keyword: str
     ) -> Tuple[str, bool, List[str]]:
-        """推断最匹配的 Schema.org 类型。
+        """文章专栏优化器：固定返回 Article 类型。
 
         Returns:
             (derived_type, fallback, errors)
         """
-        all_types = self._schema_cache.all_types()
-        if not all_types:
-            return "WebPage", True, ["schema_cache 为空，无可用类型列表"]
-
-        names_list = ", ".join(all_types[:500])  # 限制 token
-        context = f"""页面标题: {title}
-页面描述: {description}
-核心关键词: {keyword}
-正文前300字: {text[:300]}"""
-
-        prompt = (
-            f"根据以下网页内容，从 Schema.org 类型列表中选出最匹配的 1 个类型。\n\n"
-            f"{context}\n\n"
-            f"可选类型（部分）: {names_list}\n\n"
-            f"要求:\n"
-            f"1. 只返回类型名称，不要解释\n"
-            f"2. 如果都不匹配，返回 WebPage"
-        )
-
-        if self._llm is not None:
-            try:
-                result = await self._llm.chat(prompt)
-                parts = result.strip().split()
-                if parts:
-                    t = parts[0].strip("`\"'[]{}<>")
-                    if t in all_types:
-                        return t, False, []
-            except (RuntimeError, OSError, ValueError):
-                pass
-
-        # fallback: 本地匹配
-        query = f"{title} {description} {keyword}"
-        matches = self._schema_cache.local_match(query, top_k=1)
-        if matches:
-            return matches[0][0], True, []
-        return "WebPage", True, []
+        return "Article", False, []
